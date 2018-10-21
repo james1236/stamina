@@ -1,0 +1,2412 @@
+<!DOCTYPE HTML>
+<html id="html">
+  <head>
+	<title>Indev</title>
+	<style>
+		body {
+			margin: 10px;
+			padding: 0px;
+			user-select: none;
+			-moz-user-select: none;
+		}
+		
+		.offpageimg {
+			position:fixed;
+			top: -1000px;
+			left: -1000px;
+		}
+		
+		.menuCard {
+			vertical-align: top;
+			text-align: left;
+			white-space: normal;
+			word-wrap: break-word;
+			margin: 5px;
+			display: inline-block;
+			/*width: 300px;*/
+			padding: 18px;
+			background-color: #f6f6f6;
+			-moz-box-shadow: 0px 7px #c4c4c4;
+			-webkit-box-shadow: 0px 7px #c4c4c4;
+			box-shadow: 0px 7px #c4c4c4;
+			-webkit-border-radius: 4px;
+			-moz-border-radius: 4px;
+			border-radius: 4px;
+			overflow: hidden;
+		}
+		
+		.menuButton {
+			text-align: center;
+			font-size: 23px;
+			padding: 6px;
+			box-sizing: border-box;
+			color: #fff;
+			background-color: #7ee559;
+			width: 100%;
+			-webkit-border-radius: 4px;
+			-moz-border-radius: 4px;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+		
+		input {
+			text-align: center;
+			font-size: 23px;
+			margin-bottom: 16px;
+			padding: 6px;
+			border: none;
+			outline: none;
+			box-sizing: border-box;
+			color: #4A4A4A;
+			background-color: #e5e3e3;
+			width: 100%;
+			-webkit-border-radius: 4px;
+			-moz-border-radius: 4px;
+			border-radius: 4px;
+		}
+		
+		html * {
+			font-family: Hammersmith One !important;
+		}
+	</style>
+	<link href="https://fonts.googleapis.com/css?family=Hammersmith+One" rel="stylesheet"></link>
+  </head>
+  <body style="margin: 0px; background-color:black">
+	<span id="loadText" style="left:42.5%; position:fixed;top: 39.5%;"><img src="gameData/load.gif" height="155px"></img></span>
+	<canvas id="myCanvas" style="top:-3000px;position: fixed;"></canvas>
+	<font color="gray">
+	
+	<span id="mobile" style="opacity:0.2;display:none;">
+	<div id="directions" style="pointer-events: none;position:fixed;left:5%;bottom:10%">
+	<canvas id="left" style="pointer-events: auto;position:relative;background-color:white;width:90px;height:90px;left:5px"></canvas>
+	<canvas id="down" style="pointer-events: auto;position:relative;background-color:white;width:90px;height:90px;left:13px"></canvas>
+	<canvas id="up" style="pointer-events: auto;position:relative;background-color:white;width:90px;height:90px;bottom:100px;left:-82px"></canvas>
+	<canvas id="right" style="pointer-events: auto;position:relative;background-color:white;width:90px;height:90px;left:-75px"></canvas>
+	</div>
+	<canvas id="action" style="pointer-events: auto;width:90px;height:90px;background-color:white;position:fixed;right:5%;bottom:10%"></canvas>
+	</span>
+	
+	<div id="menu" class="menuCard" style="display: none; z-index: 9999; position:absolute; width: 500px; height: 400px; left: 20%; top: 15%">
+	<center><h1>Stranded.cf</h1></center><br><br><br><br><br><br><br>
+	<input id="name" type="text" placeholder="Enter Name"></input>
+	<div class="menuButton" onclick="started = true"><span>Start Game</span></div><br><br><br><a style="color: inherit; text-decoration: none;" href="http://iogames.space/" target="_blank">More IOGames</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a style="color: inherit; text-decoration: none;" href="http://doomed.io/" target="_blank">Doomed.io</a>
+	
+	</div>
+	<div id="help" class="menuCard" style="display: none; z-index: 9999; position:absolute; width: 200px; height: 400px; left: 65%; top: 15%"><pre><h3>Controls:</h3><h5>WSAD: Movement
+Arrow Keys: Movement
+SHIFT: Sprint
+Number Keys: Slot
+Scroll Wheel: Slot
+E: Action
+
+Collect resources to increase
+your maximum stamina, sleep 
+when your stamina bar is low 
+to refill it. 
+
+Your max stamina depletes
+constantly so keep filling it 
+up
+
+Create fuel to jump to a new 
+planet before a storm comes</h4></pre></div>
+	<script type="text/javascript" src="gameData/jquery.min.js"></script>
+	<script src="gameData/howler.js"></script>
+	<script>
+
+	//First thing I ever made with javascript, quite ambitious but I managed it. Excuse the code
+	
+	//Defining Canvas Draw Vars
+	var mobile = false;
+	var textAbsent = true;
+	var usertext;
+	var tutorialStage = 0;
+	var shake = 0;
+	var fuel = 0;
+	var globalSeed = 3;
+	var rainbowState = "";
+	var displayTree = false;
+	var howlStates; //List of what howl objects are loading or loaded
+	var connectTime = 0; //How long the player has been in contact with a shadow
+	var doorFade = 0;
+	var first = true; //Handles grid hiding on doorFade
+	var started = false; //Has the game started?
+	var alphaPre = 1; //Global alpha
+	var popupMsg = "";
+	var popupTime = 100;
+	var canvas = document.getElementById('myCanvas');
+	var context = canvas.getContext('2d');
+	var shadowOnScreen = 0;
+	var gridFlag = true;
+	var spaceGridActive = true;
+	var timeInSpace = 0;
+	var drawSlot = false;
+	var falseMoveX = 0; //Fake grid float movement
+	var falseMoveY = 0;
+	var globalx;
+	var globaly;
+	var scaledx;
+	var scaledy;
+	var globalScale = 45;
+	var movement = 1; //Distance walked since last footstep noise
+	var day = 0;
+	var notdead = true;
+	var drawEnable = true;
+	var colors = {
+		gray:"#70897b",
+		black:'#36364D',
+		white:"#efefef",
+		rock:"#727d83",
+		terminal:"#327fba",
+		terminalWire:"#42bcf4",
+		
+		terrain:"#BDE4A8",
+		terrainDefault:"#BDE4A8",
+		
+		berry:'#e84848',
+		
+		green:'#8ecc51',
+		greenRock:"#a3b1b9",
+		greenDefault:'#8ecc51',
+		
+		forest:"#81F499",
+		rockForest:"#7c9daf",
+				
+		red:'#e84848',
+		redNormal:'#e84848',
+		rockRed:"#c47777",
+		
+		skin:'#7C5D4F',
+		skinNormal:'#7C5D4F',
+		skinRock:'#664c41',
+		
+		yellow:'#f9f759',
+		yellowNormal:'#f9f759',
+		rockYellow:"#c4c077",
+	};
+	var world = {
+		music:0,
+		
+		quiverStart:2500,
+		rockStart:1000,
+		bushStart:250,
+		stumpStart:2000,
+		shadowStart:2000,
+		
+		bushAmount:1000,
+		stumpAmount:500,
+		shadowAmount:50,
+		
+		mush:false,
+		
+		terrain:"#BDE4A8",
+		forest:"#81F499",
+		green:'#8ecc51',
+		berry:'#e84848',
+	};	
+	//Example for later deletion, used to save the autumn values, has no purpose in the long term
+	var worldAutumn = {
+		music:1,
+		
+		quiverStart:2500,
+		rockStart:1000,
+		bushStart:250,
+		stumpStart:2000,
+		shadowStart:2000,
+		
+		bushAmount:1000,
+		stumpAmount:500,
+		shadowAmount:50,
+		
+		mush:true,
+		
+		terrain:"#e4dea8",
+		forest:"#f4de80",
+		green:'#cca751',
+		berry:'#e8ca47',
+	};
+	var gridOffset = {x:500000000000, y:500000000000, sx:0, sy:0};
+	var canvasOffset = {x:683, y:335, sx:0, sy:0};
+	var stepSize = 0;
+	var keysPressed = [];
+	var stamina = {value: 60, max:60, width:75, maxWidth: 75, red: 15, yellow: 50, slow: 15}
+	var player = {x:683, y:335, r:27} //Coordinates of where the player is drawn onscreen
+	var timeout = 0; //Message timeout for under player
+	var playerTimeout = 0; //Red message timeout for under player
+	var timeoutE = 0; //Key 69 timeout
+	var message = "";
+	var playerMessage = "";
+	var slipSize = 0; //Under player msg offset
+	var distance = 0; //Distance from player to player.x,player.y
+	var structures = {
+		walls:{
+			x:[150,150,50],
+			y:[-150,150,-150],
+			r:[27,27,10],
+			c:[colors.green,colors.red,colors.redNormal],
+			type:["Press E to sell slot","Press E to sleep","Doors"]
+		},
+		bushes:{
+			bush:[]
+		},
+		stumps:{
+			stump:[]
+		},
+		shadows:{
+			shadow:[]
+		},
+		stars:{
+			star:[]
+		},
+		rects:{
+			x:[-200,0],
+			y:[-200,0],
+			lx:[400,0],
+			ly:[400,0],
+			c:[colors.gray,colors.white]	
+		},
+		door:{
+			x:-200,
+			y:-200,
+			lx:400,
+			ly:400,
+			c:colors.black
+		},
+	}
+	var defaultStructures = structures;
+	
+	var inventory = {
+		item:["","","","",""],
+		amount:[0,0,0,0,0],
+		slot:0
+	}
+	var price = {
+		berry:1,
+		wood:2,
+		stone:5,
+	}
+	var chunk = {
+		x:[],
+		y:[],
+		xo:[],
+		yo:[],
+		t:[],
+	}
+	
+	var guiButtons = {}
+
+	function init()
+	{
+		if (document.body.clientWidth>100) {
+			canvas.width = document.body.clientWidth; //document.width is obsolete
+		} else {
+			canvas.width = 1500;
+		}
+		if (document.body.clientHeight>100) {
+			canvas.height = document.body.clientHeight; //document.height is obsolete
+		} else {
+			canvas.height = 1000;
+		}
+	}
+	
+	init();
+	
+	//context.drawImage(img,canvas.width/6,canvas.height/16,900,550);
+	
+	function HSVtoRGB(h, s, v) {
+		var r, g, b, i, f, p, q, t;
+		if (arguments.length === 1) {
+			s = h.s, v = h.v, h = h.h;
+		}
+		i = Math.floor(h * 6);
+		f = h * 6 - i;
+		p = v * (1 - s);
+		q = v * (1 - f * s);
+		t = v * (1 - (1 - f) * s);
+		switch (i % 6) {
+			case 0: r = v, g = t, b = p; break;
+			case 1: r = q, g = v, b = p; break;
+			case 2: r = p, g = v, b = t; break;
+			case 3: r = p, g = q, b = v; break;
+			case 4: r = t, g = p, b = v; break;
+			case 5: r = v, g = p, b = q; break;
+		}
+		return {
+			r: Math.round(r * 255),
+			g: Math.round(g * 255),
+			b: Math.round(b * 255)
+		};
+	}
+
+	function rainbow(p) {
+		var rgb = HSVtoRGB(p/100.0*0.85, 1.0, 1.0);
+		return [rgb.r,rgb.g,rgb.b];
+	}
+	
+	function componentToHex(c) {
+		var hex = c.toString(16);
+		return hex.length == 1 ? "0" + hex : hex;
+	}
+
+	function rgbToHex(rgb) {
+		return "#" + componentToHex(rgb[0]) + componentToHex(rgb[1]) + componentToHex(rgb[2]);
+	}
+
+
+	function reload() {
+		context.clearRect(0,0,canvas.width, canvas.height);
+		textAbsent = true;
+		//Pre
+		context.save();
+		if (shake > 0) {
+			var dx = Math.random()*10;
+			var dy = Math.random()*10;
+		}
+		context.translate(dx, dy);  
+		//Run reload
+		reload2();
+		//Post
+		context.restore();
+	}
+	
+	function drawEntities() {
+		//Drawing rects that aren't the floor
+		for (rect = 1; rect < structures.rects.x.length; rect++) {
+			context.beginPath();
+			context.fillStyle = structures.rects.c[rect];
+			context.fillRect(canvasOffset.x+structures.rects.x[rect], canvasOffset.y+structures.rects.y[rect], structures.rects.lx[rect], structures.rects.ly[rect]);
+		}
+		//Drawing Terminal
+		
+		if (timeInSpace == 0) {
+			context.fillStyle = colors.white;
+		} else {
+			context.fillStyle = lerpColor(colors.white,rgbToHex(rainbow(timeInSpace)),0.4);
+		}
+		
+		topx = -175+canvasOffset.x;
+		topy = -175+canvasOffset.y;
+		context.lineWidth = 5;
+		
+		context.strokeStyle = colors.terminalWire;
+		
+		context.moveTo(topx+10,topy+10);
+		context.lineTo(topx+40,topy+10);
+		context.lineTo(topx+25,topy+40);
+		context.lineTo(topx+10,topy+10);
+		context.lineTo(topx+11,topy+10);
+		context.stroke();
+		context.fill();
+		
+		//Drawing Generator gd
+		//Lights up as power % increases
+		//Flashes at 100%
+		//lerp/shade flashinh, fade in and out
+		context.beginPath();
+		context.lineWidth = 4;
+		context.fillStyle = shadeColor(colors.white,-30);
+		context.strokeStyle = colors.white;
+		context.fillRect(canvasOffset.x-175,canvasOffset.y+135,35,35);
+		context.strokeRect(canvasOffset.x-175,canvasOffset.y+135,30,30);
+		context.fillStyle = world.forest; //colors.skin ETC depending on the type of node required
+		//Stand over it, says how many are required
+		//When all are added, the circle dissapears and the fillRect starts flashing
+		context.strokeStyle = lerpColor(colors.white,context.fillStyle,0.3);
+		context.arc(canvasOffset.x-160,canvasOffset.y+150,10,Math.PI*2,false);
+		context.fill();
+		context.stroke();
+		
+		
+		
+		//Drawing doors
+		context.beginPath();
+		if (drawEnable) {
+			structures.walls.c[2] = colors.redNormal;
+			context.strokeStyle = shadeColor(colors.terrain,-7);
+			if (first == true) {
+				colors.terrain = world.terrain;
+				doorFade = 0;
+				structures.rects.c[0] = colors.gray;
+				gridFlag = true;
+				first = false;
+			}
+		} else {
+			structures.walls.c[2] = colors.greenDefault;
+			gridFlag = false;
+			structures.rects.c[0] = shadeColor(colors.gray,-35);
+			colors.terrain = shadeColor(colors.terrain,-doorFade);
+			context.strokeStyle = colors.black;
+			first = true;
+		}
+		context.lineWidth = 5;
+		context.strokeRect(canvasOffset.x+structures.door.x,canvasOffset.y+structures.door.y,structures.door.lx,structures.door.ly);
+		
+		for (wall = 0; wall < structures.walls.x.length; wall++) {
+			if (structures.walls.type[wall] != "Item") {
+				context.beginPath();
+				context.fillStyle = structures.walls.c[wall];
+				context.arc(canvasOffset.x+structures.walls.x[wall], canvasOffset.y+structures.walls.y[wall], structures.walls.r[wall], 2 * Math.PI, false);
+				context.fill();
+				context.lineWidth = 3.5;
+				context.strokeStyle = shadeColor(structures.walls.c[wall],-7);
+				context.stroke();
+			}	
+		}		
+		
+		for (bush = 0; bush < structures.bushes.bush.length; bush++) {
+			//If the bush is in view (significant lag improvement)
+			if (
+				canvasOffset.x+structures.bushes.bush[bush].x < 2000 && 
+				canvasOffset.x+structures.bushes.bush[bush].x > -2000 && 
+				canvasOffset.y+structures.bushes.bush[bush].y < 2000 && 
+				canvasOffset.y+structures.bushes.bush[bush].y > -2000 && drawEnable == true
+			) {
+				context.beginPath();
+				context.fillStyle = colors.forest;
+				context.arc(canvasOffset.x+structures.bushes.bush[bush].x, canvasOffset.y+structures.bushes.bush[bush].y, 30, 2 * Math.PI, false);
+				context.fill();
+				context.lineWidth = 3.5;
+				context.strokeStyle = shadeColor(colors.forest,-7);
+				context.stroke();
+				if (structures.bushes.bush[bush].amount > 0) {
+					for (berry = 0; berry < structures.bushes.bush[bush].amount; berry++) {
+						context.beginPath();
+						context.fillStyle = colors.berry;
+						context.arc(canvasOffset.x+structures.bushes.bush[bush].x+structures.bushes.bush[bush].berryx[berry], canvasOffset.y+structures.bushes.bush[bush].y+structures.bushes.bush[bush].berryy[berry], 5, 2 * Math.PI, false);
+						context.fill();
+						context.lineWidth = 2.5;
+						context.strokeStyle = shadeColor(colors.berry,20);
+						context.stroke();
+					}
+				}
+			}
+		}
+		
+		for (stump = 0; stump < structures.stumps.stump.length; stump++) {
+			//If the bush is in view (significant lag improvement)
+			if (
+				canvasOffset.x+structures.stumps.stump[stump].x < 2000 && 
+				canvasOffset.x+structures.stumps.stump[stump].x > -2000 && 
+				canvasOffset.y+structures.stumps.stump[stump].y < 2000 && 
+				canvasOffset.y+structures.stumps.stump[stump].y > -2000 && drawEnable == true
+			) {
+				if (structures.stumps.stump[stump].amount > 0) {
+					context.beginPath();
+					context.fillStyle = colors.skin;
+					context.arc(canvasOffset.x+structures.stumps.stump[stump].x, canvasOffset.y+structures.stumps.stump[stump].y, 30, 2 * Math.PI, false);
+					context.fill();
+					context.lineWidth = 3.5;
+					context.strokeStyle = shadeColor(colors.skin,-7);
+					context.stroke();	
+				
+					context.beginPath();
+					context.arc(canvasOffset.x+structures.stumps.stump[stump].x, canvasOffset.y+structures.stumps.stump[stump].y, 15, 2 * Math.PI, false);
+					context.lineWidth = 3.5;
+					context.strokeStyle = shadeColor(colors.skin,-7);
+					context.stroke();					
+					
+					context.beginPath();
+					context.arc(canvasOffset.x+structures.stumps.stump[stump].x, canvasOffset.y+structures.stumps.stump[stump].y, 5, 2 * Math.PI, false);
+					context.lineWidth = 3.5;
+					context.strokeStyle = shadeColor(colors.skin,-7);
+					context.stroke();
+				}
+			}
+		}
+	}
+	
+	function drawShadows() {
+		//Rendering Shadows
+		for (shadow = 0; shadow < structures.shadows.shadow.length; shadow++) {
+			//If the bush is in view (significant lag improvement)
+			if (
+				canvasOffset.x+structures.shadows.shadow[shadow].x < 2000 && 
+				canvasOffset.x+structures.shadows.shadow[shadow].x > -2000 && 
+				canvasOffset.y+structures.shadows.shadow[shadow].y < 2000 && 
+				canvasOffset.y+structures.shadows.shadow[shadow].y > -2000
+			) {
+				context.beginPath();
+				
+				context.fillStyle = shadeColor(colors.terrain,-4);
+
+				context.arc(canvasOffset.x+structures.shadows.shadow[shadow].x, canvasOffset.y+structures.shadows.shadow[shadow].y, structures.shadows.shadow[shadow].r, 2 * Math.PI, false);
+				context.fill();
+			}
+		}
+	}
+
+	
+	function createBush(ix,iy) {
+		structures.bushes.bush[structures.bushes.bush.length] = {};
+		structures.bushes.bush[structures.bushes.bush.length-1].x = ix;
+		structures.bushes.bush[structures.bushes.bush.length-1].y = iy;
+		structures.bushes.bush[structures.bushes.bush.length-1].amount = (randInt(2)+1);
+		structures.bushes.bush[structures.bushes.bush.length-1].berryx = [];
+		structures.bushes.bush[structures.bushes.bush.length-1].berryy = [];
+		for (cberry = 0; cberry < structures.bushes.bush[structures.bushes.bush.length-1].amount; cberry++) {
+			structures.bushes.bush[structures.bushes.bush.length-1].berryx[cberry] = (randInt(30)-15);
+			structures.bushes.bush[structures.bushes.bush.length-1].berryy[cberry] = (randInt(30)-15);
+			if (cberry == 1) {
+				if (collide(structures.bushes.bush[structures.bushes.bush.length-1].berryx[1],
+					structures.bushes.bush[structures.bushes.bush.length-1].berryy[1],
+					10,
+					"",
+					structures.bushes.bush[structures.bushes.bush.length-1].berryx[0],
+					structures.bushes.bush[structures.bushes.bush.length-1].berryy[0],
+					10)) {
+					structures.bushes.bush[structures.bushes.bush.length-1].berryx.splice(0, 1);
+					structures.bushes.bush[structures.bushes.bush.length-1].berryy.splice(0, 1);
+					cberry--;	
+				}
+			}
+		}
+	}
+	
+	function createStump(ix,iy) {
+		structures.stumps.stump[structures.stumps.stump.length] = {};
+		structures.stumps.stump[structures.stumps.stump.length-1].x = ix;
+		structures.stumps.stump[structures.stumps.stump.length-1].y = iy;
+		structures.stumps.stump[structures.stumps.stump.length-1].amount = (randInt(3)+2);
+	}	
+	
+	function createShadow(ix,iy) {
+		structures.shadows.shadow[structures.shadows.shadow.length] = {};
+		structures.shadows.shadow[structures.shadows.shadow.length-1].x = ix;
+		structures.shadows.shadow[structures.shadows.shadow.length-1].y = iy;
+		structures.shadows.shadow[structures.shadows.shadow.length-1].r = 30;
+	}
+	
+	function generateStructures() {
+		structures.bushes.bush = [];
+		for (amount = 0; amount < world.bushAmount; amount++) {
+			tx = (randInt(25776)-12888);
+			ty = (randInt(25776)-12888);
+			if (
+				canvasOffset.x+tx < canvasOffset.x+world.bushStart && 
+				canvasOffset.y+ty < canvasOffset.y+world.bushStart && 
+				canvasOffset.x+tx > canvasOffset.x-world.bushStart && 
+				canvasOffset.y+ty > canvasOffset.y-world.bushStart
+				) {
+				amount--;
+			} else {
+				createBush(tx,ty);
+			}
+		}		
+		
+		structures.stumps.stump = [];
+		for (amount = 0; amount < world.stumpAmount; amount++) {
+			tx = (randInt(25776)-12888);
+			ty = (randInt(25776)-12888);
+			if (
+				canvasOffset.x+tx < canvasOffset.x+world.stumpStart && 
+				canvasOffset.y+ty < canvasOffset.y+world.stumpStart && 
+				canvasOffset.x+tx > canvasOffset.x-world.stumpStart && 
+				canvasOffset.y+ty > canvasOffset.y-world.stumpStart
+				) {
+				amount--;
+			} else {
+				createStump(tx,ty);
+			}
+		}
+		
+		structures.shadows.shadow = [];
+		for (amount = 0; amount < world.shadowAmount; amount++) {
+			tx = (randInt(25776)-12888);
+			ty = (randInt(25776)-12888);
+			if (
+				canvasOffset.x+tx < canvasOffset.x+world.shadowStart && 
+				canvasOffset.y+ty < canvasOffset.y+world.shadowStart && 
+				canvasOffset.x+tx > canvasOffset.x-world.shadowStart && 
+				canvasOffset.y+ty > canvasOffset.y-world.shadowStart
+				) {
+				amount--;
+			} else {
+				createShadow(tx,ty);
+			}
+		}
+	}
+	
+	
+	function displayChar() {
+		context.fillStyle = colors.skin;
+		context.beginPath();
+		context.arc(player.x, player.y, 27, 2*Math.PI, false);
+		context.fill();
+		context.lineWidth = 3.5;
+		context.strokeStyle = colors.black;
+		context.stroke();
+	}	
+	
+	function displayStam() {
+		context.beginPath();
+		context.fillStyle = colors.black;
+		if (stamina.width > 0) {
+			context.fillRect(player.x-40, player.y+40, 80, 10);	
+		} else {
+			popup("");
+			stamina.width = -0.001;
+			context.font = "100pt Hammersmith One";
+			if (drawEnable) {
+				context.fillStyle = colors.black;
+			} else {
+				context.fillStyle = colors.white;
+			}
+			context.fillText("You Died",(canvas.width/4)+50,canvas.height/4);
+			context.fillStyle = colors.green;
+			context.fillRect(623,441,125,50);
+
+			if (globalx > 623 && globaly > 441 && globalx < 750 && globaly < 491) {
+				guiButtons.replay = true;
+				context.fillStyle = shadeColor(colors.green,-7);
+				context.fillRect(623,441,125,50);
+				context.fillStyle =	colors.black;
+				context.font = "15pt Hammersmith One";
+				context.fillText("Play Again",638,471);
+			} else {
+				guiButtons.replay = false;
+			}
+
+			context.fillStyle = colors.black;
+			context.font = "15pt Hammersmith One";
+			context.fillText("Play Again",638,471);
+		}
+		//range, 0 to 75
+		//needs to have a changeable max, need to make it scale
+		if (stamina.width > stamina.yellow) {
+			context.fillStyle = colors.green;
+		} else {
+			if (stamina.width > stamina.red) {
+				context.fillStyle = colors.yellow;
+			} else {
+				context.fillStyle = colors.red;
+			}
+		}
+		context.fillRect(player.x-37.5, player.y+42.5, stamina.width, 5);
+	}
+
+	function pickup(item) {
+		if (tutorialStage == 3 && item == "berry") {
+			tutorialStage = 4;
+			popup("Stand over the big green circle and press E to sell your berries");
+		}
+		for (slot = 0; slot < 5; slot++) {
+			if (inventory.item[slot] == item) {
+				inventory.amount[slot]++;
+				break;
+			}
+		}
+		if (slot >= 5) {
+			for (emptySlot = 0; emptySlot < 5; emptySlot++) {
+				if (inventory.amount[emptySlot] == 0) {
+					inventory.item[emptySlot] = item;
+					inventory.amount[emptySlot] = 1;
+					break;
+				}
+			}
+			if (emptySlot >= 5) {
+				back.play();
+			}
+		}
+	}
+	
+	function sell() {
+		if (tutorialStage == 4) {
+			popup("");
+			tutorialStage = 5;
+			setTimeout(function(){popup("Your maximum stamina has increased. Every morning   your stamina bar refills. Feel free to sleep or keepon collecting resources");},200)
+		}
+		
+		if (inventory.amount[inventory.slot] > 0 && inventory.item[inventory.slot] != "axe" && inventory.item[inventory.slot] != "mush") {
+			timeoutE = 50;
+			if (inventory.item[inventory.slot] == "berry") {
+				increase = price["berry"] * inventory.amount[inventory.slot];
+				stamina.max+= increase;
+				inventory.amount[inventory.slot] = 0;
+				inventory.item[inventory.slot] = "";
+				blip.play();
+				if (increase < 10) {
+					msg("Max Stamina +"+increase,1,5);
+				} else {
+					if (increase < 100) {
+						msg("Max Stamina +"+increase,1,10);
+					} else {
+						if (increase < 1000) {
+							msg("Max Stamina +"+increase,1,15);
+						} else {
+							msg("Max Stamina +"+increase,1,17);
+						}
+					}
+				}
+			}				
+			
+			if (inventory.item[inventory.slot] == "wood") {
+				increase = price["wood"] * inventory.amount[inventory.slot];
+				stamina.max+= increase;
+				inventory.amount[inventory.slot] = 0;
+				inventory.item[inventory.slot] = "";
+				blip.play();
+				if (increase < 10) {
+					msg("Max Stamina +"+increase,1,5);
+				} else {
+					if (increase < 100) {
+						msg("Max Stamina +"+increase,1,10);
+					} else {
+						if (increase < 1000) {
+							msg("Max Stamina +"+increase,1,15);
+						} else {
+							msg("Max Stamina +"+increase,1,17);
+						}
+					}
+				}
+			}			
+			//List products
+		} else {
+			if (timeoutE == 0) {
+				timeoutE = 50;
+				back.play();
+			}
+		}
+	}
+	
+	
+	/* for (i = 0; i < 300; i = i + 10) {
+		setTimeout(function(){
+			xbank[xbank.length] = randInt(25);
+			ybank[ybank.length] = randInt(11);
+			colorbank[colorbank.length] = randHex();
+		},i);
+	}
+	for (i = 300; i < 600; i = i + 10) {
+		setTimeout(function(){
+			xbank.splice(0, 1);
+			ybank.splice(0, 1);
+			colorbank.splice(0, 1);
+		},i);
+	} */
+	
+	function axe() {
+		structures.walls.r[3] = 0;
+		structures.walls.type[3] = " ";
+		structures.rects.lx[1] = 0;
+		structures.rects.ly[1] = 0;
+		pickup("axe");
+	}
+	
+	function randInt(max){
+		return Math.trunc(Math.random() * (max - 0));
+	}
+
+	Math.seededRandom = function(max, min) {
+		max = max || 1;
+		min = min || 0;
+	 
+		Math.seed = (Math.seed * 9301 + 49297) % 233280;
+		var rnd = Math.seed / 233280;
+	 
+		return Math.trunc(min + rnd * (max - min));
+	}
+	
+	async function darken() {
+		if (mobile) {
+			$('#mobile').hide();
+		}
+		drawSlot = false;
+		popup("");
+		gridFlag = false;
+		if (!spaceGridActive) {
+			if (world.music == 0) {
+				musicSpring.fade(0.025, 0, 500, smus);
+			}
+			if (world.music == 1) {
+				musicAutumn.fade(0.025, 0, 500, amus);
+			}
+		}
+		for (dark = 0; dark <= 100; dark++) {
+			await sleep(5)	;
+			context.globalAlpha-=0.01;
+		}
+		night();
+		await sleep(500);
+		lighten();
+	}
+	
+	function night() {
+		stamina.max-=stamina.max/30;
+		if (drawEnable) {
+			popup("The light woke you up early. If only it was darker..");
+			stamina.value = (stamina.yellow/75) * stamina.max;
+		} else {
+			stamina.value = stamina.max;
+		}
+		day++;
+		structures.bushes.bush = [];
+		structures.stumps.stump = [];
+		structures.shadows.shadow = [];
+		generateStructures();
+		if (day == 5) {
+			structures.walls.x[3] = -140;
+			structures.walls.y[3] = -85;
+			structures.walls.r[3] = 10;
+			structures.walls.c[3] = "invisible";
+			structures.walls.type[3] = "Item";
+			structures.rects.x[1] = -150;
+			structures.rects.y[1] = -100;
+			structures.rects.lx[1] = 20;
+			structures.rects.ly[1] = 30;
+			structures.rects.c[1] = colors.white;
+		}
+	}
+	
+	async function lighten() {
+		if (!spaceGridActive) {
+			if (world.music == 0) {
+				musicSpring.fade(0, 0.025, 500, smus);
+			}
+			if (world.music == 1) {
+				musicAutumn.fade(0, 0.025, 500, amus);
+			}
+		}
+		for (dark = 0; dark <= 100; dark++) {
+			await sleep(5)	;
+			context.globalAlpha+=0.01;
+		}
+		gridFlag = true;
+		drawSlot = true;
+		if (mobile) {
+			$('#mobile').show();
+		}
+	}
+	
+	
+	function shadeColor(color, percent) {
+
+		var R = parseInt(color.substring(1,3),16);
+		var G = parseInt(color.substring(3,5),16);
+		var B = parseInt(color.substring(5,7),16);
+
+		R = parseInt(R * (100 + percent) / 100);
+		G = parseInt(G * (100 + percent) / 100);
+		B = parseInt(B * (100 + percent) / 100);
+
+		R = (R<255)?R:255;  
+		G = (G<255)?G:255;  
+		B = (B<255)?B:255;  
+
+		var RR = ((R.toString(16).length==1)?"0"+R.toString(16):R.toString(16));
+		var GG = ((G.toString(16).length==1)?"0"+G.toString(16):G.toString(16));
+		var BB = ((B.toString(16).length==1)?"0"+B.toString(16):B.toString(16));
+
+		return "#"+RR+GG+BB;
+	}
+	
+	
+	function lerpColor(a, b, amount) { 
+
+		var ah = parseInt(a.replace(/#/g, ''), 16),
+			ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff,
+			bh = parseInt(b.replace(/#/g, ''), 16),
+			br = bh >> 16, bg = bh >> 8 & 0xff, bb = bh & 0xff,
+			rr = ar + amount * (br - ar),
+			rg = ag + amount * (bg - ag),
+			rb = ab + amount * (bb - ab);
+
+		return '#' + ((1 << 24) + (rr << 16) + (rg << 8) + rb | 0).toString(16).slice(1);
+	}
+	
+	function splitViaLen(str, n) {
+		var ret = [];
+		var i;
+		var len;
+
+		for(i = 0, len = str.length; i < len; i += n) {
+		   ret.push(str.substr(i, n))
+		}
+
+		return ret
+	};
+
+	function sleep(ms) {
+	  return new Promise(resolve => setTimeout(resolve, ms));
+	}
+	
+	function createAudio(src, volume, loop, canplay) {
+		var audio = document.createElement('audio');
+		audio.addEventListener('canplay', canplay, false);
+		audio.volume = volume;
+		audio.loop = loop;
+		audio.src    = src;
+		return audio;
+	}
+	
+	function hexToRgb(hex) {
+		var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+		return result ? {
+			r: parseInt(result[1], 16),
+			g: parseInt(result[2], 16),
+			b: parseInt(result[3], 16)
+		} : null;
+	}
+	
+	function toTriplet(hexStr) {
+		if (hexStr.length != 3 && hexStr.length != 4) {
+			if (hexStr.substr(0,1) == "#") {
+				return "#"+hexStr.substr(1,1)+hexStr.substr(3,1)+hexStr.substr(5,1);
+			} else {
+				return "#"+hexStr.substr(0,1)+hexStr.substr(2,1)+hexStr.substr(4,1);
+			}
+		} else {
+			return hexStr;
+		}
+	}
+
+	function getMax(arr) {
+		if (arr.length === 0) {
+			return -1;
+		}
+
+		var max = arr[0];
+		var maxIndex = 0;
+
+		for (var i = 1; i < arr.length; i++) {
+			if (arr[i] > max) {
+				maxIndex = i;
+				max = arr[i];
+			}
+		}
+
+		return arr[maxIndex];
+	}
+	
+	function randHex(type,inseed) {
+		lightHex = ["a","b","c","d","e"];
+		darkHex = [0,1,2,3,4,5,6,7,8,9];
+		allHex = [0,1,2,3,4,5,6,7,8,9,"a","b","c","d","e","f"];
+		
+		if (inseed == undefined) {
+		
+			if (type == undefined || type == 0) {
+				var hex = "#" + lightHex[randInt(lightHex.length)] + lightHex[randInt(lightHex.length)] + lightHex[randInt(lightHex.length)];
+			}
+			if (type == 1) {
+				var hex = "#" + darkHex[randInt(darkHex.length)] + darkHex[randInt(darkHex.length)] + darkHex[randInt(darkHex.length)];
+			}		
+			if (type == 2) {
+				var hex = "#" + allHex[randInt(allHex.length)] + allHex[randInt(allHex.length)] + allHex[randInt(allHex.length)];
+			}
+			return hex;
+			
+		} else {
+			hex = "#"+allHex[Math.seededRandom(14)]+allHex[Math.seededRandom(14)]+allHex[Math.seededRandom(14)]+allHex[Math.seededRandom(14)]+allHex[Math.seededRandom(14)]+allHex[Math.seededRandom(14)];
+			return hex;
+		}
+	}
+	function grid() {
+	
+		//console.log(canvasOffset.x + "," + canvasOffset.y);
+		context.strokeStyle = shadeColor(colors.terrain,-7);
+		context.lineWidth = 1;
+		context.beginPath();
+		//context.getImageData(canvasOffset.x, canvasOffset.y, 1, 1).data
+		
+		if (String(gridOffset.x/globalScale).split(".").length > 1) {
+			falseMoveX = parseFloat("0."+String(gridOffset.x/globalScale).split(".")[1])*globalScale;
+		} else {
+			falseMoveX = 0;
+		}
+		if (String(gridOffset.y/globalScale).split(".").length > 1) {
+			falseMoveY =  parseFloat("0."+String(gridOffset.y/globalScale).split(".")[1])*globalScale;
+		} else {
+			falseMoveY = 0;
+		}
+		
+		
+		if (distance > world.quiverStart) {
+			for (y = 0; y < canvas.height; y = y + globalScale)  {
+				//Goes from canvasOffset.x
+				//to        canvas.width+canvasOffset.x
+				//along the same y
+				context.moveTo(0,y+falseMoveY);
+				context.lineTo(canvas.width,y+falseMoveY+randInt(distance/1000)-distance/2000);
+				context.stroke();
+			}
+			for (x = 0; x < canvas.width; x = x + globalScale)  {
+				//from x,-59000 to x,1366
+				context.moveTo(x+falseMoveX,0);
+				context.lineTo(x+falseMoveX+randInt(distance/1000)-distance/2000,canvas.height);
+				context.stroke();
+			}
+			//phase.volume((distance/2000)-2,pha);
+		} else {
+			for (y = 0; y < canvas.height; y = y + globalScale)  {
+				//Goes from canvasOffset.x
+				//to        canvas.width+canvasOffset.x
+				//along the same y
+				context.moveTo(0,y+falseMoveY);
+				context.lineTo(canvas.width,y+falseMoveY);
+				context.stroke();
+			}
+			for (x = 0; x < canvas.width; x = x + globalScale)  {
+				//from x,-59000 to x,1366
+				context.moveTo(x+falseMoveX,0);
+				context.lineTo(x+falseMoveX,canvas.height);
+				context.stroke();
+			}
+		}
+	}
+
+	
+	function reload2() {
+		//console.log(globalx,globaly);
+		context.clearRect(0, 0, canvas.width, canvas.height);
+		context.fillStyle = colors.terrain;
+		context.fillRect(0, 0, canvas.width, canvas.height);
+		if (spaceGridActive == true) {
+			spaceGrid();
+			drawEnable = false;
+			timeInSpace++;
+		} else {
+			if (timeInSpace != 0) {
+				//Run change to world procedure
+				if (tutorialStage == 1) {
+					tutorialStage = 2;
+					popup("Open the door (stand over the small circle and pressE)");
+				}
+				structures.stars.star = [];
+				worldInit();
+				station.fade(0.25,0,500,stmus);
+				if (world.music == 0) {
+					musicSpring.fade(0,0.025,500,smus);
+				}
+				if (world.music == 1) {
+					musicAutumn.fade(0,0.025,500,amus);
+				}
+			}
+			timeInSpace = 0;
+		}
+		if (started) {
+			if (!drawEnable) {
+				context.beginPath();
+				context.fillStyle = structures.rects.c[0];
+				context.fillRect(canvasOffset.x+structures.rects.x[0], canvasOffset.y+structures.rects.y[0], structures.rects.lx[0], structures.rects.ly[0]);
+			} else {
+				context.fillStyle = shadeColor(colors.terrain,-7);
+				context.fillRect(canvasOffset.x+structures.rects.x[0], canvasOffset.y+structures.rects.y[0], structures.rects.lx[0], structures.rects.ly[0]);	
+			}
+			drawShadows();
+			if (gridFlag && drawEnable) {
+				grid();
+			}		
+			drawEntities();		
+			displayChar();
+			displayStam();
+			displayInventory();
+			msg();
+			popup();
+			if (displayTree == true) {
+				//Display tree code here dtc
+				canvasOffset.x = startOffsetx;
+				canvasOffset.y = startOffsety;
+				displayOffset = -115;
+				
+				context.beginPath();
+				context.save();
+				alphaPre = context.globalAlpha;
+				context.globalAlpha = alphaPre - 0.5;
+				context.fillStyle = "#000000";
+				context.lineWidth = 2.5;
+				
+				//Black box
+				context.fillRect(285,130,800,350);
+				
+				//Exit button
+				//            bottomrightx | toplefty | topleftx | bottomrighty
+				if ((globalx < 1085 && globaly > 440 && globalx > 900 && globaly < 480) && displayTree) {
+					context.fillStyle = shadeColor(colors.white,-20);
+				} else {
+					context.fillStyle = colors.white;
+				}
+				
+				context.fillRect(900,440,185,40);
+				context.fillStyle = "#000000";
+				context.font = "12pt Hammersmith One"; 
+				context.fillText("Cancel",970,465);
+				context.font = "10pt Hammersmith One"; 
+				
+				//Planet Information pib
+				context.fillStyle = shadeColor(colors.white,-70);
+				context.fillRect(900,130,185,310);
+				context.fillStyle = "#ffffff";
+				
+				if (day != 0) {
+					for (planet = 0; planet < world.planets; planet++) {
+						if (planet == 0) {
+							if (collide(810+displayOffset+world["xpath"+planet],240+world["ypath"+planet],15,"Cursor",globalx,globaly,1,1)) {
+								context.fillText("Planet ID: "+world["id"+planet],915,160);
+								context.fillText("0 people have visited",915,190);
+								context.fillText("this planet",915,205);
+								context.fillText("Click to jump",915,235);
+							}
+						}					
+						
+						if (planet == 1) {
+							if (collide(910+displayOffset+world["xpath"+planet],300+world["ypath"+planet],15,"Cursor",globalx,globaly,1,1)) {
+								context.fillText("Planet ID: "+world["id"+planet],915,160);
+								context.fillText("0 people have visited",915,190);
+								context.fillText("this planet",915,205);
+								context.fillText("Click to jump",915,235);
+							}
+						}					
+						
+						if (planet == 2) {
+							if (collide(810+displayOffset+world["xpath"+planet],340+world["ypath"+planet],15,"Cursor",globalx,globaly,1,1)) {
+								context.fillText("Planet ID: "+world["id"+planet],915,160);
+								context.fillText("0 people have visited",915,190);
+								context.fillText("this planet",915,205);
+								context.fillText("Click to jump",915,235);
+							}
+						}
+						
+						
+						if ((planet == 0) && collide(500+displayOffset,300,20,"Cursor",globalx,globaly,1,1)) {
+							if (globalSeed != 3) {
+								context.fillText("Planet ID: "+globalSeed,915,160);
+								context.fillText("0 people have visited",915,190);
+								context.fillText("this planet",915,205);
+								context.fillText("Current Planet",915,235);
+							} else {
+								context.fillText("Planet: Earth",915,160);
+								context.fillText("Current Planet",915,200);
+							}
+						}
+					}
+				} else {
+					if (tutorialStage == 0) {
+						tutorialStage = 1;
+						popup("Click on a planet to visit it");
+					}
+					if (collide(500,300,20,"Cursor",globalx,globaly,1,1)) {
+						context.fillText("Planet: Earth",915,160);
+						context.fillText("Click to visit",915,200);
+					}
+				}
+				
+				
+				//Borders
+				context.strokeStyle = colors.white;
+				context.strokeRect(285,130,800,350);
+				context.strokeStyle = colors.black;
+				context.strokeRect(290,135,800,350);
+				
+				//Close old path
+				context.globalAlpha = alphaPre;
+				context.restore();
+				
+				//Path
+				if (day != 0) {
+					for (planet = 0; planet < world.planets; planet++) {
+						context.strokeStyle = world["path"+planet];
+						context.fillStyle = world["path"+planet];
+						context.globalAlpha = alphaPre-0.8;
+						if (planet == 0) {
+							context.beginPath();
+							context.moveTo(500+displayOffset,300);
+							context.lineTo(810+displayOffset+world["xpath"+planet],240+world["ypath"+planet]);
+							context.closePath();
+						}
+						if (planet == 1) {
+							context.beginPath();
+							context.moveTo(500+displayOffset,300);
+							context.lineTo(910+displayOffset+world["xpath"+planet],300+world["ypath"+planet]);
+							context.closePath();
+						}
+						if (planet == 2) {
+							context.beginPath();
+							context.moveTo(500+displayOffset,300);
+							context.lineTo(810+displayOffset+world["xpath"+planet],340+world["ypath"+planet]);
+							context.closePath();
+						}
+						context.stroke();
+						context.globalAlpha = alphaPre;
+						
+						if (planet == 0) {
+							context.beginPath();
+							context.arc(810+displayOffset+world["xpath"+planet],240+world["ypath"+planet],15,2*Math.PI,false);
+							context.closePath();
+						}
+						if (planet == 1) {
+							context.beginPath();
+							context.arc(910+displayOffset+world["xpath"+planet],300+world["ypath"+planet],15,2*Math.PI,false);
+							context.closePath();
+						}
+						if (planet == 2) {
+							context.beginPath();
+							context.arc(810+displayOffset+world["xpath"+planet],340+world["ypath"+planet],15,2*Math.PI,false);
+							context.closePath();
+						}
+						context.fill();
+						
+						//Draw destination planets here
+					}
+					//Current
+					context.beginPath();
+					context.fillStyle = world.terrain;
+					//Draw planet twice for max opacity
+					context.arc(500+displayOffset,300,20,2*Math.PI,false);
+					context.arc(500+displayOffset,300,20,2*Math.PI,false);
+					context.fill();
+					context.closePath();
+				} else {
+					context.beginPath();
+					context.fillStyle = world.terrain;
+					//Draw planet twice for max opacity
+					context.arc(500,300,20,2*Math.PI,false);
+					context.arc(500,300,20,2*Math.PI,false);
+					context.fill();
+					context.closePath();
+				}
+			}
+		}
+	}
+	
+	function displayInventory() {
+		offsety = 60;
+		for (slot = 0; slot < 5; slot++) {
+			if (drawSlot == true) {
+				if (inventory.slot == slot) {
+					context.fillStyle = colors.white;
+					context.fillRect(18,offsety-2,54,54);
+				}
+			}
+			
+			alphaPre = context.globalAlpha;
+			if (alphaPre > 0.5) {
+				context.globalAlpha = alphaPre-0.3;
+			} else {
+				context.globalAlpha = 0
+			}
+			context.fillStyle = colors.green;
+			context.fillRect(20,offsety,50,50);
+			context.globalAlpha = alphaPre;
+			
+			context.fillStyle = colors.black; 
+			context.font = "10pt Hammersmith One"; 
+			context.fillText(inventory.item[slot],29,offsety+20);
+			if (inventory.amount[slot] > 0) {
+				alphaPre = context.globalAlpha;
+				if (alphaPre > 0.5) {
+					context.globalAlpha = alphaPre-0.3;
+				} else {
+					context.glboalAlpha = 0;
+				}
+				context.fillText(inventory.amount[slot],29,offsety+40);
+				context.globalAlpha = alphaPre;
+			}
+			offsety+=70;
+		}
+	}
+	
+	function distToPlayer(pointx,pointy) {
+		a = pointx - player.x;
+		b = pointy - player.y;
+		return Math.sqrt( a*a + b*b );
+	}	
+
+	function collide(argx,argy,argr,special,arg2x,arg2y,arg2r,nocanvas) {
+		if (arg2r == undefined) {
+			x1 = player.x;
+			y1 = player.y;
+			radius1 = player.r;
+		} else {
+			x1 = arg2x;
+			y1 = arg2y;
+			radius1 = arg2r;
+		}
+		
+		x2 = argx;
+		y2 = argy;
+		radius2 = argr;
+
+		if (nocanvas == undefined) {
+			x2+= canvasOffset.x;
+			y2+= canvasOffset.y;
+		} 
+		
+		//compare the distance to combined radii
+		if ( Math.sqrt( ( x2-x1 ) * ( x2-x1 )  + ( y2-y1 ) * ( y2-y1 ) ) < ( radius1 + radius2 ) ) 
+		{
+			if (special == "") {
+				if (x1 > x2) {
+					if (y1 > y2) {
+						//br
+						canvasOffset.x-=stepSize;
+						canvasOffset.y-=stepSize;
+					} else {
+						//tr
+						canvasOffset.x-=stepSize;
+						canvasOffset.y+=stepSize;
+					}
+				} else {
+					if (y1 > y2) {
+						//bl
+						canvasOffset.x+=stepSize;
+						canvasOffset.y-=stepSize;
+					} else {
+						//tl
+						canvasOffset.x+=stepSize;
+						canvasOffset.y+=stepSize;
+					}
+				}
+			} else {
+				if (special == "Doors") {
+					if (keysPressed[69] && timeoutE == 0) {
+						if (!spaceGridActive) {
+							if (drawEnable) {
+								drawEnable = false;
+							} else {
+								if (tutorialStage == 2) {
+									tutorialStage = 3;
+									popup("Find and collect some berries with E, make sure to  sleep (big red circle) if your stamina bar gets too low!");
+								}
+								drawEnable = true;
+							}
+							door.play();
+						} else {
+							back.play();
+						}
+						timeoutE = 75;
+					}
+				}
+			}
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	function msg(msg,type,slip,red) {
+		if (type == undefined) {
+			if (msg != undefined) {
+				message = msg;
+				timeout = 100;
+			}
+		} else {
+			if (msg != undefined) {
+				if (red == undefined) {
+					playerMessage = msg;
+					playerTimeout = 100;
+				} else {
+					playerMessage2 = msg;
+					playerTimeout = 100;
+				}
+			}
+			if (slip != undefined) {
+				slipSize = slip;
+			} else {
+				slipSize = 0;
+			}
+		}
+		if (playerTimeout < 1) {
+			playerMessage = "";
+			playerMessage2 = "";
+		}
+		if (timeout < 1) {
+			message = "";
+		}
+		playerTimeout-=1;
+		timeout-=2;
+		context.font = "20pt Hammersmith One"; 
+		if (drawEnable) {
+			context.fillStyle = colors.black; 
+		} else {
+			context.fillStyle = colors.white;
+		}
+		if (textAbsent) {
+			textAbsent = false;
+			context.fillText(message,20,40);
+			context.fillStyle = colors.white; 
+			context.font = "10pt Hammersmith One"; 
+			context.fillText(playerMessage,player.x-50-slipSize,player.y+65);
+			context.fillStyle = colors.red; 
+			context.font = "10pt Hammersmith One"; 
+			context.fillText(playerMessage2,player.x-50-slipSize,player.y+65);
+		}
+	}
+	
+	function popup(txt) {
+		if (txt == undefined) {
+			if (popupMsg != "") {
+				//Msg
+				txt = popupMsg;
+				
+				lines = splitViaLen(txt, 52);
+				charHeight = 15;
+				height = (lines.length+1) * charHeight;
+				
+				alphaPre = context.globalAlpha;
+				if (alphaPre > 0.5) {
+					context.globalAlpha = alphaPre-0.2;
+				} else {
+					context.globalAlpha = 0
+				}
+				
+				context.fillStyle = colors.white;
+				context.fillRect(canvas.width-400,popupTime-100+20,380,height);
+				context.fillStyle = colors.black;
+				for (line = 0; line < lines.length; line++) {
+					context.fillText(lines[line],canvas.width-390,popupTime-100+40+line*charHeight);
+				}
+				
+				
+				//X
+				//globalx > 623 && globaly > 441 && globalx < 750 && globaly < 491
+				if (globalx < canvas.width-10 && globaly > 10 && globalx > canvas.width-30 && globaly < 30) {
+					context.fillStyle = colors.gray;
+				} else {
+					context.fillStyle = colors.white;
+				}
+				
+				context.beginPath();
+				context.arc(canvas.width-20, popupTime-100+20, 10, 2* Math.PI, false);
+				context.fill();
+				context.fillStyle = colors.black;
+				context.fillText("X",canvas.width-24,popupTime-100+25);
+
+				context.globalAlpha = alphaPre;
+				
+			}
+		} else {
+			popupMsg = txt;
+			popupTime = 0;
+			if (txt.length > 3) {
+				msgSound.play();
+			}
+		}		
+	}
+	
+	function keys() {
+		if (keysPressed[27]) {
+			popup("");
+		}
+	
+		if (popupTime != 100) {
+			popupTime+=5;
+		}
+		
+		if (timeoutE > 0) {
+			timeoutE--;
+		}		
+		
+		if (shake > 0) {
+			shake--;
+		}		
+		
+		if (shadowOnScreen > 0) {
+			shadowOnScreen--;
+		}
+		
+		connectTime--;
+		
+		if (!drawEnable){
+			doorFade++;
+		}
+		
+		a = canvasOffset.x - player.x;
+		b = canvasOffset.y - player.y;
+		distance = Math.sqrt( a*a + b*b );		
+		
+
+		for (shadow = 0; shadow < structures.shadows.shadow.length; shadow++) {
+			if (
+				canvasOffset.x+structures.shadows.shadow[shadow].x < canvas.width+50 && 
+				canvasOffset.x+structures.shadows.shadow[shadow].x > -50 && 
+				canvasOffset.y+structures.shadows.shadow[shadow].y < canvas.height+50 && 
+				canvasOffset.y+structures.shadows.shadow[shadow].y > -50
+			) {
+				if (
+				(canvasOffset.x+structures.shadows.shadow[shadow].x < canvasOffset.x+200 && 
+				canvasOffset.y+structures.shadows.shadow[shadow].y < canvasOffset.y+200 && 
+				canvasOffset.x+structures.shadows.shadow[shadow].x > canvasOffset.x-200 && 
+				canvasOffset.y+structures.shadows.shadow[shadow].y > canvasOffset.y-200) || drawEnable
+				) {
+					if ((canvasOffset.x+structures.shadows.shadow[shadow].x < canvasOffset.x+200 && canvasOffset.y+structures.shadows.shadow[shadow].y < canvasOffset.y+200 && canvasOffset.x+structures.shadows.shadow[shadow].x > canvasOffset.x-200 && canvasOffset.y+structures.shadows.shadow[shadow].y > canvasOffset.y-200) && !drawEnable) {
+						structures.shadows.shadow[shadow].r += 0.5;
+						shadowOnScreen = 10;
+					} else {
+						if (canvasOffset.x+structures.shadows.shadow[shadow].x > player.x) {
+							if (canvasOffset.y+structures.shadows.shadow[shadow].y > player.y) {
+								//X & Y BIGGER
+								structures.shadows.shadow[shadow].x -= 1.2;
+								structures.shadows.shadow[shadow].y -= 1.2;
+							} else {
+								//X BIGGER Y SMALLER
+								structures.shadows.shadow[shadow].x -= 1.2;
+								structures.shadows.shadow[shadow].y += 1.2;
+							}
+						} else {
+							if (canvasOffset.y+structures.shadows.shadow[shadow].y > player.y) {
+								//Y BIGGER X SMALLER
+								structures.shadows.shadow[shadow].x += 1.2;
+								structures.shadows.shadow[shadow].y -= 1.2;
+							} else {
+								//X & Y SMALLER
+								structures.shadows.shadow[shadow].x += 1.2;
+								structures.shadows.shadow[shadow].y += 1.2;
+							}
+						}
+						shadowOnScreen = 10;
+					}
+				}
+			}
+		}
+		
+		if (distance - world.rockStart > 0) { 
+			if (distance/2000 < 1) {
+				if (world.music == 0) {
+					musicSpring.volume(0.025-(distance - world.rockStart)/30000,smus);
+				}
+				if (world.music == 1) {
+					musicAutumn.volume(0.025-(distance - world.rockStart)/30000,amus);
+				}	
+				
+				colors.terrain = lerpColor(world.terrain,colors.rock,(distance - world.rockStart)/2000);
+				colors.forest = lerpColor(world.forest,colors.rockForest,(distance - world.rockStart)/2000);
+				colors.green = lerpColor(world.green,colors.greenRock,(distance - world.rockStart)/2000);
+				colors.berry = lerpColor(world.berry,colors.rock,(distance - world.rockStart)/2000);
+				
+				colors.skin = lerpColor(colors.skinNormal,colors.skinRock,(distance - world.rockStart)/2000);
+				colors.red = lerpColor(colors.redNormal,colors.rockRed,(distance - world.rockStart)/2000);
+				colors.yellow = lerpColor(colors.yellowNormal,colors.rockYellow,(distance - world.rockStart)/2000);
+				
+				musicRock.volume((distance - world.rockStart)/10000,roc);
+			}
+		}
+		
+		if (movement <= 0) {
+			step.play()
+			movement = 50;
+		}
+		
+		if (canvasOffset.x > 12888) {
+			canvasOffset.x-=stepSize;
+		}
+		if (canvasOffset.y > 12888) {
+			canvasOffset.y-=stepSize;
+		}
+		if (canvasOffset.x < -12888) {
+			canvasOffset.x+=stepSize;
+		}
+		if (canvasOffset.y < -12888) {
+			canvasOffset.y+=stepSize;
+		}
+
+		if (drawEnable != true) {
+			if (canvasOffset.x > player.x-170) {
+				canvasOffset.x-=stepSize;
+			}
+			if (canvasOffset.y > player.y-170) {
+				canvasOffset.y-=stepSize;
+			}
+			if (canvasOffset.x-player.x < 170) {
+				canvasOffset.x+=stepSize;
+			}
+			if (canvasOffset.y-player.y < 170) {
+				canvasOffset.y+=stepSize;
+			}
+		}
+		
+		stamina.width = (stamina.value/stamina.max)*(stamina.maxWidth);
+		
+		for (c = 0; c < structures.walls.x.length; c++) {
+			if (collide(structures.walls.x[c],structures.walls.y[c],structures.walls.r[c],structures.walls.type[c])) {
+				msg(structures.walls.type[c]);
+			}
+		}		
+		
+		//Generator
+		if (collide(-160,150,20,"Generator")) {
+			msg("Generator");
+			msg("Berry (20)",1,-18,1);
+		}
+		
+		//tcf
+		if (collide(-175+20,-175+20,20,"Terminal")) {
+			msg("Terminal");
+			if (keysPressed[69] && timeoutE == 0) {
+				if (spaceGridActive == false) {
+					//Beam up fuel thingy
+					if (drawEnable == false) {
+						if (!fuel) {
+							msg("Make some fuel first",1,12,1);
+							back.play();
+						} else {
+							transition();
+							blip.play();
+						}
+						//spaceGridActive = true;
+					} else {
+						msg("Close the doors first",1,12,1);
+						back.play();
+					}
+				} else {
+					//Planet tree
+					startOffsetx = canvasOffset.x;
+					startOffsety = canvasOffset.y;
+					displayTree = true;
+					blip.play();
+					//spaceGridActive = false;
+				}
+				timeoutE = 50;
+			}
+		}
+		
+		for (c = 0; c < structures.bushes.bush.length; c++) {
+			collide(structures.bushes.bush[c].x,structures.bushes.bush[c].y,27,"");
+			if (collide(structures.bushes.bush[c].x,structures.bushes.bush[c].y,30,"Bush")) {
+				if (structures.bushes.bush[c].amount <= 0) {
+					msg("Picked Bush");
+				} else {
+					msg("Bush");
+					if (keysPressed[69] && timeoutE == 0) {
+						if (world.mush == false) {
+							pickup("berry");
+						} else {
+							pickup("mush"); 
+						}
+						structures.bushes.bush[c].amount--;
+						timeoutE = 50;
+						rustle.play();
+					}
+				}	
+			}
+		}
+			
+		for (c = 0; c < structures.stumps.stump.length; c++) {
+			if (structures.stumps.stump[c].amount > 0) {
+				collide(structures.stumps.stump[c].x,structures.stumps.stump[c].y,27,"");
+				if (collide(structures.stumps.stump[c].x,structures.stumps.stump[c].y,30,"Stump")) {
+					msg("Stump");
+					if (keysPressed[69] && timeoutE == 0) {
+						if (inventory.item[inventory.slot] == "axe") {
+							if (structures.stumps.stump[c].amount > 1) {
+								woodHit.play();
+							} else {
+								woodBreak.play();
+							}
+							pickup("wood");
+							stamina.value-= 2;
+							structures.stumps.stump[c].amount--;
+							timeoutE = 100;
+						} else {
+							msg("Use something stronger",1,28,1);
+							back.play();
+							timeoutE = 50;
+						}
+					}	
+				}
+			}
+		}
+		
+		for (c = 0; c < structures.shadows.shadow.length; c++) {
+			if (collide(structures.shadows.shadow[c].x,structures.shadows.shadow[c].y,structures.shadows.shadow[c].r,"Shadow")) {
+				stamina.value-=0.2;
+				if (connectTime < 0) {
+					phase.fade(0,0.5,500,pha);
+				}
+				connectTime = 10;
+				timeoutE = 10;
+			}
+		}
+		
+		if (connectTime == 0) {
+			phase.fade(0.4,0,500,pha);
+		}
+		
+		if (keysPressed[69]) {
+			if (collide(structures.walls.x[0],structures.walls.y[0],structures.walls.r[0],structures.walls.type[0])) {
+				sell();
+			}			
+			if (collide(structures.walls.x[1],structures.walls.y[1],structures.walls.r[1],structures.walls.type[1])) {
+				if (stamina.width < stamina.red && timeoutE == 0 && shadowOnScreen == 0 && (day == 0 && spaceGridActive == true) == false) {
+					timeoutE = 300;
+					darken();
+				} else {
+					if (timeoutE == 0) {
+						if ((day == 0 && spaceGridActive == true)) {
+							msg("Jump to your planet first",1,26,1);
+						} else {
+							if (stamina.width >= stamina.red) {
+								msg("You're not tired enough",1,26,1);
+							} else {
+								if (shadowOnScreen != 0) {
+									msg("It's too dangerous",1,12,1);
+								}
+							}
+						}
+						back.play();
+						timeoutE = 50;
+					}
+					
+				}
+			}
+			if (collide(structures.walls.x[3],structures.walls.y[3],structures.walls.r[3],structures.walls.type[3]) && timeoutE == 0 && structures.rects.lx[1] != 0) {
+				timeoutE = 50;
+				axe();
+			}
+		}
+		
+		if (started) {
+			if (keysPressed[16]) {
+				if (stamina.value > stamina.slow) {
+					if (!mobile) {
+						stepSize = 1.6;
+					} else {
+						stepSize = 3.2;
+					}
+				} else {
+					if (!mobile) {
+						stepSize = 1;
+					} else {
+						stepSize = 2;
+					}
+				}
+			} else {
+				if (stamina.value > stamina.slow) {
+					if (!mobile) {
+						stepSize = 1.2;
+					} else {
+						stepSize = 2.4
+					}
+				} else {
+					if (!mobile) {
+						stepSize = 1;
+					} else {
+						stepSize = 2;
+					}
+				}
+			}
+		}
+		
+		if (stamina.value < 0) {
+			stepSize = 0;
+			if (notdead) {
+				dead.play();
+				musicSpring.fade(musicSpring._volume, 0, 500, smus);
+				musicAutumn.fade(musicAutumn._volume, 0, 500, amus);
+				notdead = false;
+			}
+		} else {
+			notdead = true;
+		}
+		
+		if (keysPressed[49]) {
+			inventory.slot = 0;
+		}
+		if (keysPressed[50]) {
+			inventory.slot = 1;
+		}
+		if (keysPressed[51]) {
+			inventory.slot = 2;
+		}
+		if (keysPressed[52]) {
+			inventory.slot = 3;
+		}
+		if (keysPressed[53]) {
+			inventory.slot = 4;
+		}
+		
+		
+		if (keysPressed[37]) {
+			//LEFT
+			canvasOffset.x += stepSize;
+		} else {
+			if (keysPressed[65]) {
+				//a
+				canvasOffset.x += stepSize;
+			}
+		}
+		if (keysPressed[38]) {
+			//UP
+			canvasOffset.y += stepSize;
+		} else {
+			if (keysPressed[87]) {
+				//w
+				canvasOffset.y += stepSize;
+			}
+		}
+		if (keysPressed[39]) {
+			//RIGHT
+			canvasOffset.x -= stepSize;
+		} else {
+			if (keysPressed[68]) {
+				//d
+				canvasOffset.x -= stepSize;
+			}
+		}
+		if (keysPressed[40]) {
+			//DOWN
+			canvasOffset.y -= stepSize;
+		} else {
+			if (keysPressed[83]) {
+				//s
+				canvasOffset.y -= stepSize;
+			}
+		}
+	
+		//Calc Stam
+		if (keysPressed[40] || keysPressed[39] || keysPressed[38] || keysPressed[37] ||
+			keysPressed[83] || keysPressed[68] || keysPressed[87] || keysPressed[65]) {
+			if (stepSize > 1.2) {
+				if (!mobile) {
+					stamina.value-= 0.1;
+				} else {
+					stamina.value-= 0.05;
+				}
+			} else {
+				if (!mobile) {
+					stamina.value-= 0.02;
+				} else {
+					stamina.value-= 0.01
+				}
+			}
+			movement-=stepSize;
+		}
+
+		if (spaceGridActive == false) {
+			gridOffset.x = canvasOffset.x + 500000000000;
+			gridOffset.y = canvasOffset.y + 500000000000;
+		}
+		gridOffset.sy = parseInt(gridOffset.y/globalScale);
+		gridOffset.sx = parseInt(gridOffset.x/globalScale);
+		canvasOffset.sy = canvasOffset.y/globalScale + parseFloat("0."+String(gridOffset.sx));
+		canvasOffset.sx = canvasOffset.x/globalScale + parseFloat("0."+String(gridOffset.sy));
+	}
+	
+	
+	//Coords
+	
+	function getMousePos(canvas, evt) {
+		var rect = canvas.getBoundingClientRect();
+		return {
+		  x: evt.clientX - rect.left,
+		  y: evt.clientY - rect.top
+		};
+	}
+
+	//Mousemove Handler
+	canvas.addEventListener('mousemove', function(evt) {
+		var mousePos = getMousePos(canvas, evt);
+		//setting fixed mouse coords to globalx&y
+		globalx = mousePos.x;
+		globaly = mousePos.y;
+		//Setting the scaledx&y to the mouse coords but scaled with grid
+		mousePos.x = Math.trunc(mousePos.x /globalScale - canvasOffset.sx);
+		mousePos.y = Math.trunc(mousePos.y /globalScale - canvasOffset.sy);
+		scaledy = mousePos.y;
+		scaledx = mousePos.x;
+		//Logging coords
+		var message = 'Coordinates: ' + scaledx + ' , ' + scaledy;
+	}, false);
+	
+	// --Scroll handler--
+	document.getElementById("myCanvas").addEventListener("mousewheel", function() {
+		var e = window.event || e; // old IE support
+		var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
+		if (delta > 0) {
+			if (inventory.slot != 0) {
+				inventory.slot--;
+			} else {
+				inventory.slot = 4;
+			}
+		} else {
+			if (inventory.slot != 4) {
+				inventory.slot++;
+			} else {
+				inventory.slot = 0;
+			}
+		}
+	}, false);
+	
+	//Mobile touch controls mtc
+	
+	function touchEnd() {
+		keysPressed[37] = false;
+		keysPressed[38] = false;
+		keysPressed[39] = false;
+		keysPressed[40] = false;
+		keysPressed[69] = false;
+	}
+	
+	var leftEl = document.getElementById("left");
+	var downEl = document.getElementById("down");
+	var upEl = document.getElementById("up");
+	var rightEl = document.getElementById("right");
+	var actionEl = document.getElementById("action");
+	
+	leftEl.addEventListener("touchstart", function(){keysPressed[37]=true;});
+	leftEl.addEventListener("touchmove", function(){keysPressed[37]=true;});
+	leftEl.addEventListener("touchend", touchEnd);
+	leftEl.addEventListener("touchcancel", touchEnd);	
+	
+	downEl.addEventListener("touchstart", function(){keysPressed[40]=true;});
+	downEl.addEventListener("touchmove", function(){keysPressed[40]=true;});
+	downEl.addEventListener("touchend", touchEnd);
+	downEl.addEventListener("touchcancel", touchEnd);
+	
+	upEl.addEventListener("touchstart", function(){keysPressed[38]=true;});
+	upEl.addEventListener("touchmove", function(){keysPressed[38]=true;});
+	upEl.addEventListener("touchend", touchEnd);
+	upEl.addEventListener("touchcancel", touchEnd);	
+	
+	rightEl.addEventListener("touchstart", function(){keysPressed[39]=true;});
+	rightEl.addEventListener("touchmove", function(){keysPressed[39]=true;});
+	rightEl.addEventListener("touchend", touchEnd);
+	rightEl.addEventListener("touchcancel", touchEnd);
+	
+	actionEl.addEventListener("touchstart", function(){keysPressed[69]=true;});
+	actionEl.addEventListener("touchmove", function(){keysPressed[69]=true;});
+	actionEl.addEventListener("touchend",touchEnd);
+	actionEl.addEventListener("touchcancel",touchEnd);
+	
+	document.addEventListener("touchend",touchEnd);
+	document.addEventListener("touchcancel",touchEnd);
+	
+	//Mouseclick handler onclick
+	canvas.addEventListener('click', function() { //Needs to be able to press "move" button and place layer at different location
+		if (guiButtons.replay) {
+			back.play();
+			location.reload();
+		}
+		
+		//            bottomrightx | toplefty | topleftx | bottomrighty
+		
+		if ((globalx < canvas.width-10 && globaly > 10 && globalx > canvas.width-30 && globaly < 30) && popupMsg != "") {
+			popup("");
+		}
+		
+		//            bottomrightx | toplefty | topleftx | bottomrighty
+		if ((globalx < 1085 && globaly > 440 && globalx > 900 && globaly < 480) && displayTree) {
+			displayTree = false;
+		}
+
+		//Planet guiHan
+		if (displayTree == true) {
+			for (planet = 0; planet < world.planets; planet++) {
+				testFor = -1;
+				if (planet == 0) {
+					if (collide(810+displayOffset+world["xpath"+planet],240+world["ypath"+planet],15,"Cursor",globalx,globaly,1,1)) {
+						testFor = 0;
+					}				
+				}
+				if (planet == 1) {
+					if (collide(910+displayOffset+world["xpath"+planet],300+world["ypath"+planet],15,"Cursor",globalx,globaly,1,1)) {
+						testFor = 1;
+					}				
+				}
+				if (planet == 2) {
+					if (collide(810+displayOffset+world["xpath"+planet],340+world["ypath"+planet],15,"Cursor",globalx,globaly,1,1)) {
+						testFor = 2;
+					}
+				}
+				if (day == 0) {
+					if (collide(500,300,20,"Cursor",globalx,globaly,1,1)) {
+						testFor = 10;
+					}
+				}
+				if (testFor != -1) {
+					//Change planet
+					if (testFor != 10) {
+						globalSeed = world["id"+testFor];
+					}
+					displayTree = false;
+					worldGenerate();
+					worldInit();
+					generateStructures();
+					transition();
+					testFor = -1;
+				}
+			}
+		}
+	}, false);
+	
+	//Keypress list
+	
+	//if (!mobile) {
+		window.addEventListener("keydown",
+			function(e){
+				keysPressed[e.keyCode] = true;
+			},
+		false);
+
+		window.addEventListener('keyup',
+			function(e){
+				keysPressed[e.keyCode] = false;
+			},
+		false);
+	//}
+
+	
+	
+	//Global Eval (Code that lets the textarea code run in the global scope)
+	// By Chris West - MIT Licensed
+	globalEval = (function(global, realArray, indirectEval, indirectEvalWorks) {
+	  try {
+		eval('var Array={};');
+		indirectEvalWorks = indirectEval('Array') == realArray;
+	  } catch(err){}
+	   
+	  return indirectEvalWorks
+		? indirectEval
+		: (global.execScript
+			? function(expression) {
+				global.execScript(expression);
+			  }
+			: function(expression) {
+				setTimeout(expression, 0);
+			  }
+		  );
+	})(this, Array, (2,eval));	
+	
+	
+	function exec() {
+		globalEval("async function usercode() {"+document.getElementById("codearea").textContent+"}\n usercode();");
+	}	
+	
+	async function transition() {
+		shakemus.play();
+		for (shake = 500; shake > 0; shake--) {
+			if ((shake == 500) && (day == 0)) {
+				popup("");
+			}
+			await sleep(10);
+		}
+		
+		if (spaceGridActive) {
+			spaceGridActive = false;
+		} else {
+			spaceGridActive = true;
+		}
+		displayTree = false;
+	}
+	
+	/*var spring = createAudio('spring.wav', 0.1, true, function() {
+		spring.play();
+	});*/
+	
+	function worldInit() {
+		if (world.music == 0) {
+			musicSpring.fade(0,0.025,500,smus);
+		}
+		if (world.music == 1) {
+			musicAutumn.fade(0,0.025,500,amus);
+		}
+		
+		//colors.terrain = world.terrain;
+		colors.terrain = shadeColor(colors.terrain,-doorFade);
+		colors.forest = world.forest;
+		colors.green = world.green;
+		colors.berry = world.berry;
+		
+		colors.skin = colors.skinNormal;
+		colors.red = colors.redNormal;
+		colors.yellow = colors.yellowNormal;
+	}
+	
+	function worldGenerate() {
+		Math.seed = globalSeed;
+		
+		if (day != 0) {
+			world.terrain = lerpColor(colors.terrainDefault,randHex(2,Math.seededRandom(999999)),0.5);
+			world.music = Math.seededRandom(2);
+			world.forest = lerpColor(world.terrain,randHex(2,Math.seededRandom(999999)),0.5);
+			world.berry = lerpColor(world.forest,randHex(2,Math.seededRandom(999999)),0.5);
+			world.green = shadeColor(lerpColor(colors.greenDefault,world.terrain,0.5),20);
+			world.bushAmount = Math.seededRandom(0,2000);
+			world.bushStart = Math.seededRandom(250,1000);
+			world.stumpAmount = Math.seededRandom(0,1000);
+			world.stumpStart = Math.seededRandom(250,4000);
+			world.shadowAmount = Math.seededRandom(10,100);
+			world.rockStart = Math.seededRandom(300,2000);
+			world.quiverStart = world.rockStart+Math.seededRandom(0,2000);
+			world.shadowStart = world.rockStart+500;
+			
+			if (Math.seededRandom(3)) {
+				world.mush = false;
+			} else {
+				world.mush = true;
+			}
+		}
+		
+		//Future planet generation
+		world.planets = Math.seededRandom(2,4);
+		for (planet = 0; planet < world.planets; planet++) {
+			//world["path"+planet] = rgbToHex(rainbow(Math.seededRandom(0,1000)));
+			Math.seed = Math.seededRandom(0,10000000);
+			world["id"+planet] = Math.seed;
+			world["path"+planet] = lerpColor(colors.terrainDefault,randHex(2,Math.seededRandom(999999)),0.5);
+			if (planet == 0) {
+				z = Math.seededRandom(0,10000000);
+				z = Math.seededRandom(0,10000000);
+				z = Math.seededRandom(0,10000000);
+				world["xpath"+planet] = Math.seededRandom(0,61)-30;
+				world["ypath"+planet] = Math.seededRandom(0,61)-30;
+				Math.seed = Math.seededRandom(0,10000000);
+			} else {
+				world["xpath"+planet] = Math.seededRandom(0,61)-30;
+				world["ypath"+planet] = Math.seededRandom(0,61)-30;
+				Math.seed = globalSeed;
+			}
+		}
+	}
+	
+	function spaceGrid() {
+		fuel = 0;
+		if (timeInSpace == 0) {
+			//Run startup procedure
+			station.fade(0,0.25,500,stmus);
+			if (world.music == 0) {
+				musicSpring.fade(0.025,0,500,smus);
+			}
+			if (world.music == 1) {
+				musicAutumn.fade(0.025,0,500,amus);
+			}
+		}
+		
+		//Make stars if none are found
+		if (structures.stars.star.length == 0) {
+			if (!mobile) {
+				starAmount = 400000;
+			} else {
+				starAmount = 10000;
+			}
+			
+			for (cstar = 0; cstar < starAmount; cstar++) {
+				structures.stars.star[structures.stars.star.length] = {};
+				if (!mobile) {
+					structures.stars.star[structures.stars.star.length-1].x = randInt(100000)-player.x;
+					structures.stars.star[structures.stars.star.length-1].y = randInt(100000)-player.y;
+				} else {
+					structures.stars.star[structures.stars.star.length-1].x = randInt(30000)-player.x;
+					structures.stars.star[structures.stars.star.length-1].y = randInt(30000)-player.y;
+
+				}
+			}
+		}
+		
+		//Space grid and background
+		context.fillStyle = shadeColor(colors.black,-85);
+		context.fillRect(0, 0, canvas.width, canvas.height);
+		grid();
+		//Draw Stars
+		for (star = 0; star < structures.stars.star.length; star++) {
+			if (gridOffset.x-500000000000+structures.stars.star[star].x < 2000 && 
+				gridOffset.x-500000000000+structures.stars.star[star].x > -2000 && 
+				gridOffset.y-500000000000+structures.stars.star[star].y < 2000 && 
+				gridOffset.y-500000000000+structures.stars.star[star].y > -2000) {
+				
+				context.beginPath();
+				context.strokeStyle = colors.white;
+				context.arc(structures.stars.star[star].x+gridOffset.x-500000000000, structures.stars.star[star].y+gridOffset.y-500000000000, 1, 2 * Math.PI, false);
+				context.stroke();
+			}
+		}
+		//Move background
+		gridOffset.x-=0.1;
+		gridOffset.y-=0.05;
+	}
+	
+	var musicSpring = new Howl({
+		src: ['gameData/spring.wav'],
+		autoplay: false,
+		loop: true,
+		volume: 0
+	});			
+	var musicAutumn = new Howl({
+		src: ['gameData/autumn.wav'],
+		autoplay: false,
+		loop: true,
+		volume: 0
+	});		
+	var step = new Howl({
+		src: ['gameData/step.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.02
+	});	
+	var rustle = new Howl({
+		src: ['gameData/rustle.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.1
+	});
+	var woodHit = new Howl({
+		src: ['gameData/woodHit.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.2
+	});
+	var woodBreak = new Howl({
+		src: ['gameData/woodBreak.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.1
+	});
+	var blip = new Howl({
+		src: ['gameData/up.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.05
+	});
+	var back = new Howl({
+		src: ['gameData/down.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.025
+	});	
+	var dead = new Howl({
+		src: ['gameData/dead.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.25
+	});		
+	var phase = new Howl({
+		src: ['gameData/phase.wav'],
+		autoplay: false,
+		loop: true,
+		volume: 0
+	});		
+	var door = new Howl({
+		src: ['gameData/door.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.3
+	});		
+	var station = new Howl({
+		src: ['gameData/station.mp3'],
+		autoplay: false,
+		loop: true,
+		volume: 0
+	});		
+	var musicRock = new Howl({
+		src: ['gameData/rock.wav'],
+		autoplay: false,
+		loop: true,
+		volume: 0
+	});	
+	var msgSound = new Howl({
+		src: ['gameData/msg.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.1
+	});	
+	var beacon = new Howl({
+		src: ['gameData/beacon.wav'],
+		autoplay: false,
+		loop: true,
+		volume: 0.02
+	});	
+	var alarm = new Howl({
+		src: ['gameData/alarm.mp3'],
+		autoplay: false,
+		loop: false,
+		volume: 0.2
+	});	
+	var shakemus = new Howl({
+		src: ['gameData/shake.wav'],
+		autoplay: false,
+		loop: false,
+		volume: 0.5
+	});
+	var smus = musicSpring.play();
+	var amus = musicAutumn.play();
+	var stmus = station.play();
+	//var bcon = beacon.play();
+	var roc = musicRock.play();
+	var pha = phase.play();
+	
+	async function checkLoaded() {
+		stateOutput = "loading";
+		colors.terrain = "#000000";
+		loading = true;
+		while (loading) {
+			await sleep(20);
+			loading = false;
+			howlStates = [alarm.state(),beacon.state(),msgSound.state(),musicSpring.state(),musicAutumn.state(),step.state(),rustle.state(),woodHit.state(),woodBreak.state(),blip.state(),back.state(),dead.state(),phase.state(),door.state(),station.state(),musicRock.state()];
+
+			for (state = 0; state < howlStates.length; state++) {
+				if (howlStates[state] == "loading") {
+					loading = true;
+				}
+			}
+		}
+		
+		
+		station.volume(0.25,stmus);
+		$('#myCanvas').css('top', '0px');
+		$('#loadText').css('top', '-1000px');
+		//TEMPORARY COMMENT
+		$('#help').show();
+		$('#menu').show();
+		var spx = 0;
+		var spy = 0;
+		
+		while (!started) {
+			await sleep(20);
+			//started = true;
+		}
+		
+		usertext = document.getElementById("name").value;
+		$('#help').hide();
+		$('#menu').hide();
+		if (mobile) {
+			$('#mobile').show();
+		}
+		
+		//Blackout while loading
+		context.globalAlpha=0;
+		//spaceGridActive = false;
+		//drawEnable = true;
+		reload();
+		//Comment this line below out (for a starter world)
+		worldGenerate(parseInt(Math.random()*1000000));
+		structures.stars.star = [];
+		//station.fade(0.25,0,500,stmus);
+		generateStructures();
+		setTimeout(function() {
+			popup("Press E while over the triangle to jump to the      planet below");
+		},1000);
+		
+		//Lighten
+		for (dark = 0; dark <= 100; dark++) {
+			await sleep(5);
+			context.globalAlpha+=0.01;
+		}
+		drawSlot = true;
+	}
+	checkLoaded();
+	if (!mobile) {
+		var reloadInterval = setInterval(reload, 16);
+		var keysInterval = setInterval(keys,10);
+	} else {
+		var reloadInterval = setInterval(reload, 32);
+		var keysInterval = setInterval(keys,20);
+	}
+
+	//sessionSet = sessionStorage.setItem("text","//Write code here");
+	//sessionGet = sessionStorage.getItem("layerList")
+	
+	//Form submit 
+	
+	/*$('#form').submit(function(e){
+		e.preventDefault();
+		$.ajax({
+			url:'savemsg.php',
+			type:'post',
+			data:$('#form').serialize(),
+		});
+	});*/
+
+	</script>
+	</font>
+	</center>
+  </body>
+</html>
